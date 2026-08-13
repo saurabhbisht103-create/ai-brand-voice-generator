@@ -45,7 +45,7 @@ Brand tone:
 Target audience:
 {audience}
 
-Return ONLY valid JSON using exactly this structure:
+Return ONLY valid JSON with exactly these keys:
 
 {{
   "personality": "A concise description of the brand personality.",
@@ -79,10 +79,7 @@ Return ONLY valid JSON using exactly this structure:
   ]
 }}
 
-Make the result specific to the brand description, tone and target audience.
-
-Avoid generic filler.
-Keep the recommendations practical and professional.
+Make the result specific to the brand description, tone and audience.
 Return JSON only.
 """
 
@@ -90,12 +87,12 @@ Return JSON only.
 
         client = genai.Client(api_key=api_key)
 
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=prompt
+        interaction = client.interactions.create(
+            model="gemini-3.5-flash",
+            input=prompt
         )
 
-        output_text = response.text.strip()
+        output_text = interaction.output_text.strip()
 
         if output_text.startswith("```"):
             output_text = output_text.replace("```json", "", 1)
@@ -112,7 +109,7 @@ Return JSON only.
         print("Gemini returned invalid JSON:", output_text)
 
         return jsonify({
-            "error": "The AI returned an invalid response. Please try again."
+            "error": "The AI returned an invalid response."
         }), 500
 
     except Exception as e:
@@ -128,4 +125,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=5000,
         debug=True
-)
+    )
