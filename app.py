@@ -7,7 +7,6 @@ from openai import OpenAI
 app = Flask(__name__)
 
 
-
 @app.route("/")
 def home():
     return render_template("index.html")
@@ -27,11 +26,12 @@ def generate():
             "error": "Please describe your brand."
         }), 400
 
-    if not os.environ.get("OPENAI_API_KEY"):
+    api_key = os.environ.get("OPENAI_API_KEY")
+
+    if not api_key:
         return jsonify({
-            "error": "AI API key is not configured."
+            "error": "AI API key is not configured on the server."
         }), 500
-        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     prompt = f"""
 Create a professional brand voice guide.
@@ -45,67 +45,92 @@ Brand tone:
 Target audience:
 {audience}
 
-Return ONLY valid JSON with exactly these keys:
+Return ONLY valid JSON using exactly this structure:
 
 {{
-  "personality": "A short description of the brand personality.",
+  "personality": "A concise description of the brand personality.",
   "communication_style": [
-    "style point 1",
-    "style point 2",
-    "style point 3",
-    "style point 4",
-    "style point 5"
+    "Style point 1",
+    "Style point 2",
+    "Style point 3",
+    "Style point 4",
+    "Style point 5"
   ],
   "words_to_use": [
-    "word or phrase 1",
-    "word or phrase 2",
-    "word or phrase 3",
-    "word or phrase 4",
-    "word or phrase 5",
-    "word or phrase 6",
-    "word or phrase 7"
+    "Word or phrase 1",
+    "Word or phrase 2",
+    "Word or phrase 3",
+    "Word or phrase 4",
+    "Word or phrase 5",
+    "Word or phrase 6",
+    "Word or phrase 7"
   ],
   "words_to_avoid": [
-    "word or phrase 1",
-    "word or phrase 2",
-    "word or phrase 3",
-    "word or phrase 4",
-    "word or phrase 5"
+    "Word or phrase 1",
+    "Word or phrase 2",
+    "Word or phrase 3",
+    "Word or phrase 4",
+    "Word or phrase 5"
   ],
   "example_messages": [
-    "example message 1",
-    "example message 2",
-    "example message 3"
+    "Example brand message 1",
+    "Example brand message 2",
+    "Example brand message 3"
   ]
 }}
 
-Make the result specific to the brand description, tone, and audience.
-Do not use generic filler.
+Make the result specific to the brand description, tone and target audience.
+
+Avoid generic filler.
+Keep the recommendations practical and professional.
+Do not include Markdown.
+Return JSON only.
 """
 
     try:
+
+        client = OpenAI(api_key=api_key)
+
         response = client.responses.create(
-            model="gpt-5.5",
-            instructions="You are an expert brand strategist and copywriter.",
+            model="gpt-5-mini",
+            instructions=(
+                "You are an expert brand strategist, "
+                "brand voice specialist and professional copywriter."
+            ),
             input=prompt
         )
 
-        result = json.loads(response.output_text)
+        output_text = response.output_text.strip()
+
+        if not output_text:
+            return jsonify({
+                "error": "The AI returned an empty response."
+            }), 500
+
+        # Remove accidental Markdown code fences
+        if output_text.startswith("```"):
+            output_text = output_text.replace("```json", "", 1)
+            output_text = output_text.replace("```", "")
+            output_text = output_text.strip()
+
+        result = json.loads(output_text)
 
         return jsonify({
             "result": result
         })
 
     except json.JSONDecodeError:
+        print("Invalid JSON from AI:", output_text)
+
         return jsonify({
             "error": "The AI returned an invalid response. Please try again."
         }), 500
 
     except Exception as e:
-        print("AI ERROR:", e)
+        print("OpenAI error:", str(e))
 
         return jsonify({
-            "error": "Something went wrong while generating the brand voice."
+            "error": "Could not generate the brand voice. Please try again."
         }), 500
 
 
@@ -114,4 +139,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=5000,
         debug=True
-    )
+            )
