@@ -2,7 +2,7 @@ import os
 import json
 
 from flask import Flask, render_template, request, jsonify
-from openai import OpenAI
+from google import genai
 
 app = Flask(__name__)
 
@@ -26,11 +26,11 @@ def generate():
             "error": "Please describe your brand."
         }), 400
 
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("GEMINI_API_KEY")
 
     if not api_key:
         return jsonify({
-            "error": "AI API key is not configured on the server."
+            "error": "Gemini API key is not configured on the server."
         }), 500
 
     prompt = f"""
@@ -83,31 +83,20 @@ Make the result specific to the brand description, tone and target audience.
 
 Avoid generic filler.
 Keep the recommendations practical and professional.
-Do not include Markdown.
 Return JSON only.
 """
 
     try:
 
-        client = OpenAI(api_key=api_key)
+        client = genai.Client(api_key=api_key)
 
-        response = client.responses.create(
-            model="gpt-5-mini",
-            instructions=(
-                "You are an expert brand strategist, "
-                "brand voice specialist and professional copywriter."
-            ),
-            input=prompt
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt
         )
 
-        output_text = response.output_text.strip()
+        output_text = response.text.strip()
 
-        if not output_text:
-            return jsonify({
-                "error": "The AI returned an empty response."
-            }), 500
-
-        # Remove accidental Markdown code fences
         if output_text.startswith("```"):
             output_text = output_text.replace("```json", "", 1)
             output_text = output_text.replace("```", "")
@@ -120,14 +109,14 @@ Return JSON only.
         })
 
     except json.JSONDecodeError:
-        print("Invalid JSON from AI:", output_text)
+        print("Gemini returned invalid JSON:", output_text)
 
         return jsonify({
             "error": "The AI returned an invalid response. Please try again."
         }), 500
 
     except Exception as e:
-        print("OpenAI error:", str(e))
+        print("Gemini error:", str(e))
 
         return jsonify({
             "error": "Could not generate the brand voice. Please try again."
@@ -139,4 +128,4 @@ if __name__ == "__main__":
         host="0.0.0.0",
         port=5000,
         debug=True
-    )
+)
