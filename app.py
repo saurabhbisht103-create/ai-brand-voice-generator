@@ -31,6 +31,7 @@ def generate():
         return jsonify({
             "error": "AI API key is not configured."
         }), 500
+        client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
 
     prompt = f"""
 Create a professional brand voice guide.
