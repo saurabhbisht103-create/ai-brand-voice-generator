@@ -2,7 +2,11 @@ import os
 import json
 
 from flask import Flask, render_template, request, jsonify
-from google import genai
+
+from langchain_google_genai import ChatGoogleGenerativeAI
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+
 
 app = Flask(__name__)
 
@@ -33,9 +37,21 @@ def generate():
             "error": "Gemini API key is not configured on the server."
         }), 500
 
-    prompt = f"""
+    prompt = ChatPromptTemplate.from_messages([
+        (
+            "system",
+            """
+You are an expert brand strategist and professional copywriter.
+
 Create a professional brand voice guide.
 
+Return ONLY valid JSON.
+Do not use Markdown code fences.
+"""
+        ),
+        (
+            "human",
+            """
 Brand description:
 {description}
 
@@ -45,7 +61,7 @@ Brand tone:
 Target audience:
 {audience}
 
-Return ONLY valid JSON with exactly these keys:
+Return exactly this JSON structure:
 
 {{
   "personality": "A concise description of the brand personality.",
@@ -79,21 +95,36 @@ Return ONLY valid JSON with exactly these keys:
   ]
 }}
 
-Make the result specific to the brand description, tone and audience.
-Return JSON only.
+Make the result specific to the brand description,
+tone and target audience.
+
+Avoid generic filler.
+Keep the recommendations practical and professional.
 """
+        )
+    ])
 
     try:
 
-        client = genai.Client(api_key=api_key)
-
-        interaction = client.interactions.create(
+        model = ChatGoogleGenerativeAI(
             model="gemini-3.5-flash",
-            input=prompt
+            google_api_key=api_key,
+            temperature=0.7
         )
 
-        output_text = interaction.output_text.strip()
+        parser = StrOutputParser()
 
+        chain = prompt | model | parser
+
+        response = chain.invoke({
+            "description": description,
+            "tone": tone,
+            "audience": audience
+        })
+
+        output_text = response.strip()
+
+        # Remove accidental Markdown code fences
         if output_text.startswith("```"):
             output_text = output_text.replace("```json", "", 1)
             output_text = output_text.replace("```", "")
@@ -106,14 +137,14 @@ Return JSON only.
         })
 
     except json.JSONDecodeError:
-        print("Gemini returned invalid JSON:", output_text)
+        print("LangChain returned invalid JSON:", output_text)
 
         return jsonify({
             "error": "The AI returned an invalid response."
         }), 500
 
     except Exception as e:
-        print("Gemini error:", str(e))
+        print("LangChain/Gemini error:", str(e))
 
         return jsonify({
             "error": "Could not generate the brand voice. Please try again."
