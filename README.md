@@ -315,15 +315,13 @@ The AI generates a complete brand voice containing:
 
 📌 API ENDPOINT
 
-POST "/generate"
-
 The frontend sends:
 
-{
-  "description": "A modern skincare brand...",
-  "tone": "Friendly",
-  "audience": "Young adults"
-}
+
+  1.description: "A modern skincare   brand...",
+  2.tone: "Friendly",
+  3.audience: "Young adults"
+
 
 The Flask backend processes the request and returns the generated brand voice as JSON.
 
