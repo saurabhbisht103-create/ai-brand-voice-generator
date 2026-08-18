@@ -1483,3 +1483,593 @@ select:focus-visible {
         padding: 15px;
     }
 }
+/* =========================================================
+   BRANDLY AI — UI ANIMATIONS
+   Smooth animations without changing the existing design
+========================================================= */
+
+
+/* -------------------------
+   PAGE LOAD
+------------------------- */
+
+@keyframes pageFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+body {
+    animation: pageFadeIn 0.7s ease-out;
+}
+
+
+/* -------------------------
+   NAVBAR
+------------------------- */
+
+.navbar {
+    animation: navbarEnter 0.8s ease-out;
+}
+
+@keyframes navbarEnter {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* -------------------------
+   LOGO
+------------------------- */
+
+.logo-icon {
+    animation: logoGlow 2.5s ease-in-out infinite;
+}
+
+@keyframes logoGlow {
+    0%,
+    100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 0 rgba(168, 108, 255, 0));
+    }
+
+    50% {
+        transform: scale(1.08);
+        filter: drop-shadow(
+            0 0 8px rgba(168, 108, 255, 0.7)
+        );
+    }
+}
+
+
+/* -------------------------
+   HERO
+------------------------- */
+
+.hero .badge {
+    animation: fadeUp 0.7s ease-out 0.1s both;
+}
+
+.hero h1 {
+    animation: fadeUp 0.8s ease-out 0.2s both;
+}
+
+.hero-text {
+    animation: fadeUp 0.8s ease-out 0.35s both;
+}
+
+.hero-button {
+    animation: fadeUp 0.8s ease-out 0.5s both;
+}
+
+.trusted {
+    animation: fadeUp 0.8s ease-out 0.65s both;
+}
+
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(25px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* -------------------------
+   HERO PURPLE GLOW
+------------------------- */
+
+.hero::before {
+    animation: heroGlow 6s ease-in-out infinite;
+}
+
+@keyframes heroGlow {
+    0%,
+    100% {
+        opacity: 0.7;
+        transform: translateX(-50%) scale(1);
+    }
+
+    50% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1.12);
+    }
+}
+
+
+/* -------------------------
+   BADGE
+------------------------- */
+
+.badge {
+    animation:
+        fadeUp 0.7s ease-out 0.1s both,
+        badgePulse 3s ease-in-out 1s infinite;
+}
+
+@keyframes badgePulse {
+    0%,
+    100% {
+        box-shadow:
+            0 0 30px rgba(139, 77, 255, 0.08);
+    }
+
+    50% {
+        box-shadow:
+            0 0 35px rgba(139, 77, 255, 0.22);
+    }
+}
+
+
+/* -------------------------
+   BUTTON HOVER GLOW
+------------------------- */
+
+.hero-button,
+.generate-button {
+    position: relative;
+    overflow: hidden;
+}
+
+
+/* Moving light */
+
+.hero-button::before,
+.generate-button::before {
+    content: "";
+
+    position: absolute;
+
+    top: 0;
+    left: -120%;
+
+    width: 70%;
+    height: 100%;
+
+    background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.22),
+        transparent
+    );
+
+    transform: skewX(-20deg);
+
+    transition: left 0.6s ease;
+
+    pointer-events: none;
+}
+
+.hero-button:hover::before,
+.generate-button:hover::before {
+    left: 140%;
+}
+
+
+/* Button icon */
+
+.hero-button span,
+.generate-button span {
+    transition:
+        transform 0.25s ease;
+}
+
+.hero-button:hover span {
+    transform: translateX(4px);
+}
+
+
+/* -------------------------
+   INPUT ANIMATION
+------------------------- */
+
+textarea,
+select {
+    transition:
+        border-color 0.25s ease,
+        box-shadow 0.25s ease,
+        background 0.25s ease,
+        transform 0.2s ease;
+}
+
+textarea:focus,
+select:focus {
+    transform: translateY(-1px);
+}
+
+
+/* -------------------------
+   GENERATOR CARD
+------------------------- */
+
+.generator-card {
+    animation: cardEnter 0.8s ease-out both;
+}
+
+@keyframes cardEnter {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* -------------------------
+   HOW IT WORKS CARDS
+------------------------- */
+
+.step {
+    animation: stepEnter 0.7s ease-out both;
+}
+
+.step:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.step:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.step:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+@keyframes stepEnter {
+    from {
+        opacity: 0;
+        transform: translateY(25px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* -------------------------
+   STEP NUMBER
+------------------------- */
+
+.step-number {
+    transition:
+        transform 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.step:hover .step-number {
+    transform: scale(1.08) rotate(3deg);
+
+    box-shadow:
+        0 0 20px rgba(159, 91, 255, 0.25);
+}
+
+
+/* =========================================================
+   GENERATED RESULT ANIMATIONS
+========================================================= */
+
+
+/* Result container */
+
+.result-content {
+    animation: resultAppear 0.7s ease-out both;
+}
+
+@keyframes resultAppear {
+    from {
+        opacity: 0;
+        transform: translateY(25px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* Result heading */
+
+.result-header {
+    animation: resultHeader 0.6s ease-out both;
+}
+
+@keyframes resultHeader {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* -------------------------
+   VOICE BOXES
+------------------------- */
+
+.voice-box {
+    animation: voiceBoxEnter 0.6s ease-out both;
+}
+
+.voice-box:nth-child(1) {
+    animation-delay: 0.1s;
+}
+
+.voice-box:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.voice-box:nth-child(3) {
+    animation-delay: 0.3s;
+}
+
+.voice-box:nth-child(4) {
+    animation-delay: 0.4s;
+}
+
+@keyframes voiceBoxEnter {
+    from {
+        opacity: 0;
+        transform:
+            translateY(25px)
+            scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform:
+            translateY(0)
+            scale(1);
+    }
+}
+
+
+/* -------------------------
+   VOICE ICON
+------------------------- */
+
+.voice-icon {
+    transition:
+        transform 0.3s ease,
+        box-shadow 0.3s ease;
+}
+
+.voice-box:hover .voice-icon {
+    transform:
+        scale(1.1)
+        rotate(4deg);
+
+    box-shadow:
+        0 0 22px rgba(184, 108, 255, 0.25);
+}
+
+
+/* -------------------------
+   EXAMPLE BOX
+------------------------- */
+
+.examples-box {
+    animation:
+        examplesEnter 0.7s ease-out 0.5s both;
+}
+
+@keyframes examplesEnter {
+    from {
+        opacity: 0;
+        transform: translateY(25px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
+/* -------------------------
+   EXAMPLE ITEMS
+------------------------- */
+
+.example {
+    transition:
+        transform 0.25s ease,
+        border-color 0.25s ease,
+        background 0.25s ease;
+}
+
+.example:hover {
+    transform: translateX(5px);
+
+    border-color:
+        rgba(168, 85, 247, 0.3);
+
+    background:
+        rgba(168, 85, 247, 0.08);
+}
+
+
+/* -------------------------
+   COPY BUTTON
+------------------------- */
+
+.copy-button {
+    transition:
+        transform 0.2s ease,
+        background 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.copy-button:hover {
+    transform: translateY(-2px);
+
+    box-shadow:
+        0 8px 25px rgba(168, 85, 247, 0.15);
+}
+
+.copy-button:active {
+    transform: scale(0.96);
+}
+
+
+/* =========================================================
+   LOADING ANIMATION
+========================================================= */
+
+.empty-icon.loading {
+    animation:
+        loadingRotate 1.5s linear infinite,
+        loadingGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes loadingRotate {
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes loadingGlow {
+    0%,
+    100% {
+        box-shadow:
+            0 0 10px rgba(170, 108, 255, 0.15);
+    }
+
+    50% {
+        box-shadow:
+            0 0 30px rgba(170, 108, 255, 0.45);
+    }
+}
+
+
+/* =========================================================
+   RESULT CARD GLOW
+========================================================= */
+
+.result-card {
+    transition:
+        border-color 0.3s ease,
+        box-shadow 0.3s ease;
+}
+
+.result-card:hover {
+    border-color:
+        rgba(168, 85, 247, 0.18);
+
+    box-shadow:
+        0 25px 90px rgba(0, 0, 0, 0.42),
+        0 0 35px rgba(128, 68, 220, 0.06);
+}
+
+
+/* =========================================================
+   SCROLL REVEAL STYLE
+========================================================= */
+
+.generator-section,
+.result-section,
+.how-section {
+    transition:
+        opacity 0.5s ease,
+        transform 0.5s ease;
+}
+
+
+/* =========================================================
+   MOBILE ANIMATION OPTIMIZATION
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .voice-box:hover {
+        transform: translateY(-2px);
+    }
+
+    .example:hover {
+        transform: translateX(3px);
+    }
+
+    .hero-button:hover,
+    .generate-button:hover {
+        transform: translateY(-2px);
+    }
+}
+
+
+/* =========================================================
+   REDUCED MOTION
+========================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .navbar,
+    .hero .badge,
+    .hero h1,
+    .hero-text,
+    .hero-button,
+    .trusted,
+    .generator-card,
+    .step,
+    .result-content,
+    .result-header,
+    .voice-box,
+    .examples-box,
+    .empty-icon.loading {
+        animation: none !important;
+    }
+
+    .hero::before {
+        animation: none !important;
+    }
+                     }
