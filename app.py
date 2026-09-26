@@ -149,7 +149,7 @@ def generate():
 
             temperature=0.7,
 
-            max_retries=2
+            max_retries=5
         )
 
 
