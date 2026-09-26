@@ -1,254 +1,26 @@
 import os
-import sqlite3
-from functools import wraps
+import json
 
-from flask import (
-    Flask,
-    render_template,
-    request,
-    jsonify,
-    redirect,
-    url_for,
-    session
-)
-
-from werkzeug.security import (
-    generate_password_hash,
-    check_password_hash
-)
+from flask import Flask, render_template, request, jsonify
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 
 
+# =========================================================
+# FLASK APP
+# =========================================================
+
 app = Flask(__name__)
 
-# =========================================================
-# FLASK CONFIGURATION
-# =========================================================
-
-app.secret_key = os.environ.get(
-    "FLASK_SECRET_KEY",
-    "change-this-secret-key"
-)
-
-DATABASE = "users.db"
-
 
 # =========================================================
-# DATABASE
-# =========================================================
-
-def get_db():
-
-    connection = sqlite3.connect(DATABASE)
-
-    connection.row_factory = sqlite3.Row
-
-    return connection
-
-
-def init_db():
-
-    connection = get_db()
-
-    connection.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL
-        )
-    """)
-
-    connection.commit()
-
-    connection.close()
-
-
-# =========================================================
-# LOGIN PROTECTION
-# =========================================================
-
-def login_required(route):
-
-    @wraps(route)
-    def protected_route(*args, **kwargs):
-
-        if "user_id" not in session:
-
-            return redirect(
-                url_for("login")
-            )
-
-        return route(*args, **kwargs)
-
-    return protected_route
-
-
-# =========================================================
-# HOME
+# HOME PAGE
 # =========================================================
 
 @app.route("/")
-@login_required
 def home():
-
-    return render_template(
-        "index.html",
-        user_name=session.get("user_name")
-    )
-
-
-# =========================================================
-# LOGIN
-# =========================================================
-
-@app.route("/login", methods=["GET", "POST"])
-def login():
-
-    if request.method == "POST":
-
-        email = request.form.get(
-            "email",
-            ""
-        ).strip().lower()
-
-        password = request.form.get(
-            "password",
-            ""
-        )
-
-        if not email or not password:
-
-            return render_template(
-                "login.html",
-                error="Please enter your email and password."
-            )
-
-        connection = get_db()
-
-        user = connection.execute(
-            "SELECT * FROM users WHERE email = ?",
-            (email,)
-        ).fetchone()
-
-        connection.close()
-
-        if user and check_password_hash(
-            user["password"],
-            password
-        ):
-
-            session["user_id"] = user["id"]
-
-            session["user_name"] = user["name"]
-
-            session["user_email"] = user["email"]
-
-            return redirect(
-                url_for("home")
-            )
-
-        return render_template(
-            "login.html",
-            error="Invalid email or password."
-        )
-
-    return render_template("login.html")
-
-
-# =========================================================
-# SIGN UP
-# =========================================================
-
-@app.route("/signup", methods=["GET", "POST"])
-def signup():
-
-    if request.method == "POST":
-
-        name = request.form.get(
-            "name",
-            ""
-        ).strip()
-
-        email = request.form.get(
-            "email",
-            ""
-        ).strip().lower()
-
-        password = request.form.get(
-            "password",
-            ""
-        )
-
-        if not name or not email or not password:
-
-            return render_template(
-                "signup.html",
-                error="Please fill in all fields."
-            )
-
-        if len(password) < 6:
-
-            return render_template(
-                "signup.html",
-                error="Password must contain at least 6 characters."
-            )
-
-        hashed_password = generate_password_hash(
-            password
-        )
-
-        connection = get_db()
-
-        try:
-
-            connection.execute(
-                """
-                INSERT INTO users
-                (name, email, password)
-                VALUES (?, ?, ?)
-                """,
-                (
-                    name,
-                    email,
-                    hashed_password
-                )
-            )
-
-            connection.commit()
-
-        except sqlite3.IntegrityError:
-
-            connection.close()
-
-            return render_template(
-                "signup.html",
-                error="An account with this email already exists."
-            )
-
-        connection.close()
-
-        return redirect(
-            url_for("login")
-        )
-
-    return render_template("signup.html")
-
-
-# =========================================================
-# LOGOUT
-# =========================================================
-
-@app.route("/logout")
-def logout():
-
-    session.clear()
-
-    return redirect(
-        url_for("login")
-    )
+    return render_template("index.html")
 
 
 # =========================================================
@@ -256,50 +28,50 @@ def logout():
 # =========================================================
 
 @app.route("/generate", methods=["POST"])
-@login_required
 def generate():
 
-    data = request.get_json(
-        silent=True
-    ) or {}
+    # -----------------------------------------------------
+    # GET JSON DATA
+    # -----------------------------------------------------
 
-    description = data.get(
-        "description",
-        ""
-    )
+    data = request.get_json(silent=True)
 
-    tone = data.get(
-        "tone",
-        "Friendly"
-    )
+    if not data:
+        return jsonify({
+            "error": "Invalid request. Please send JSON data."
+        }), 400
 
+
+    # -----------------------------------------------------
+    # GET USER INPUT
+    # -----------------------------------------------------
+
+    description = data.get("description", "")
+    tone = data.get("tone", "Friendly")
     audience = data.get(
         "audience",
         "General audience"
     )
 
+
     # -----------------------------------------------------
-    # CLEAN INPUT
+    # VALIDATE TEXT
     # -----------------------------------------------------
 
     if not isinstance(description, str):
-
         return jsonify({
             "error": "Brand description must be text."
         }), 400
 
     if not isinstance(tone, str):
-
         tone = "Friendly"
 
     if not isinstance(audience, str):
-
         audience = "General audience"
 
+
     description = description.strip()
-
     tone = tone.strip()
-
     audience = audience.strip()
 
 
@@ -315,48 +87,56 @@ def generate():
 
 
     # -----------------------------------------------------
-    # VERY LARGE REQUEST PROTECTION
+    # LARGE PROMPT PROTECTION
     # -----------------------------------------------------
 
-    # This is NOT the Gemini context limit.
-    # It simply prevents accidentally enormous HTTP requests.
+    # Gemini 2.5 Flash supports a very large context window.
+    #
+    # This limit is intentionally much larger than a normal
+    # brand description, while preventing accidental gigantic
+    # HTTP requests from crashing the server.
 
-    MAX_DESCRIPTION_CHARACTERS = 2_000_000
+    MAX_DESCRIPTION_CHARACTERS = 3_500_000
 
     if len(description) > MAX_DESCRIPTION_CHARACTERS:
 
         return jsonify({
             "error": (
-                "The brand description is extremely large. "
-                "Please reduce it and try again."
+                "Your brand description is extremely large. "
+                "Please reduce the text slightly and try again."
             )
         }), 413
 
 
-    # -----------------------------------------------------
-    # API KEY
-    # -----------------------------------------------------
+    # =====================================================
+    # GEMINI API KEY
+    # =====================================================
 
-    # Use GEMINI_API_KEY because this is the variable
-    # you configured during deployment.
+    # IMPORTANT:
+    #
+    # Render environment variable:
+    #
+    # GEMINI_API_KEY
+    #
+    # The name here must match exactly.
 
     google_api_key = os.environ.get(
         "GEMINI_API_KEY"
     )
 
+
     if not google_api_key:
 
         return jsonify({
             "error": (
-                "Gemini API key is not configured. "
-                "Please add GEMINI_API_KEY to your "
-                "deployment environment variables."
+                "GEMINI_API_KEY is not configured. "
+                "Please add it in Render Environment Variables."
             )
         }), 500
 
 
     # =====================================================
-    # GEMINI
+    # GEMINI MODEL
     # =====================================================
 
     try:
@@ -373,62 +153,9 @@ def generate():
         )
 
 
-        # -------------------------------------------------
-        # STRUCTURED OUTPUT
-        # -------------------------------------------------
-
-        structured_model = model.with_structured_output(
-            {
-                "type": "object",
-                "properties": {
-
-                    "personality": {
-                        "type": "string"
-                    },
-
-                    "communication_style": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-
-                    "words_to_use": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-
-                    "words_to_avoid": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    },
-
-                    "example_messages": {
-                        "type": "array",
-                        "items": {
-                            "type": "string"
-                        }
-                    }
-                },
-
-                "required": [
-                    "personality",
-                    "communication_style",
-                    "words_to_use",
-                    "words_to_avoid",
-                    "example_messages"
-                ]
-            }
-        )
-
-
-        # -------------------------------------------------
+        # =================================================
         # PROMPT
-        # -------------------------------------------------
+        # =================================================
 
         prompt = ChatPromptTemplate.from_messages([
 
@@ -437,72 +164,101 @@ def generate():
                 """
 You are an expert brand strategist and brand voice specialist.
 
-Your job is to analyze the COMPLETE brand information supplied
-by the user.
+Your task is to analyze the COMPLETE brand information provided
+by the user and create a professional brand voice guide.
 
-The user may provide a very long description.
+The user's description may be very long.
 
-IMPORTANT:
+IMPORTANT RULES:
 
-1. Do not ignore useful information near the beginning or end.
-2. Do not shorten the user's brand information yourself.
-3. Understand the brand, products, values, audience, personality,
-   communication preferences and examples.
-4. Create a practical brand voice guide.
-5. Keep the output clear and useful.
-6. Follow the requested tone and audience.
-7. Return the requested structured format only.
+1. Analyze the complete information.
+2. Do not intentionally ignore information from the beginning,
+   middle, or end of the description.
+3. Extract important brand values, personality, positioning,
+   audience, products, services, communication preferences,
+   and examples.
+4. Respect the requested brand tone.
+5. Make the result practical and useful.
+6. Do not invent facts that contradict the user's description.
+7. If the user provides examples of how the brand communicates,
+   use them to understand the brand voice.
+8. Return ONLY valid JSON.
+9. Do not use Markdown code fences.
 
-Generate:
+The JSON must contain exactly these keys:
 
-- personality
-- communication_style
-- words_to_use
-- words_to_avoid
-- example_messages
+personality
+communication_style
+words_to_use
+words_to_avoid
+example_messages
 
-The example messages should sound like the actual brand.
+Data types:
+
+personality:
+string
+
+communication_style:
+array of strings
+
+words_to_use:
+array of strings
+
+words_to_avoid:
+array of strings
+
+example_messages:
+array of strings
 """
             ),
 
             (
                 "human",
                 """
-Here is the complete brand information.
+COMPLETE BRAND INFORMATION
 
-================ BRAND DESCRIPTION ================
+--------------------------------------------------
+
+Brand description:
 
 {description}
 
-================ BRAND TONE ================
+--------------------------------------------------
+
+Preferred brand tone:
 
 {tone}
 
-================ TARGET AUDIENCE ================
+--------------------------------------------------
+
+Target audience:
 
 {audience}
 
-================ END BRAND INFORMATION ================
+--------------------------------------------------
 
-Analyze the complete information above and generate the
+END OF BRAND INFORMATION
+
+Now analyze the complete information and generate the
 brand voice guide.
 """
             )
+
         ])
 
 
-        # -------------------------------------------------
+        # =================================================
         # CREATE CHAIN
-        # -------------------------------------------------
+        # =================================================
 
-        chain = prompt | structured_model
+        chain = prompt | model
 
 
-        # -------------------------------------------------
-        # GENERATE
-        # -------------------------------------------------
+        # =================================================
+        # SEND REQUEST TO GEMINI
+        # =================================================
 
-        result = chain.invoke({
+        response = chain.invoke({
 
             "description": description,
 
@@ -512,9 +268,131 @@ brand voice guide.
         })
 
 
-        # -------------------------------------------------
-        # RETURN RESULT
-        # -------------------------------------------------
+        # =================================================
+        # GET MODEL RESPONSE
+        # =================================================
+
+        content = response.content
+
+
+        # Sometimes LangChain can return a list of content
+        # blocks instead of a simple string.
+
+        if isinstance(content, list):
+
+            text_parts = []
+
+            for item in content:
+
+                if isinstance(item, str):
+
+                    text_parts.append(item)
+
+                elif isinstance(item, dict):
+
+                    if "text" in item:
+
+                        text_parts.append(
+                            str(item["text"])
+                        )
+
+            content = "".join(text_parts)
+
+
+        content = str(content).strip()
+
+
+        # =================================================
+        # REMOVE MARKDOWN JSON FENCES
+        # =================================================
+
+        if content.startswith("```json"):
+
+            content = content[
+                len("```json"):
+            ].strip()
+
+        elif content.startswith("```"):
+
+            content = content[
+                len("```"):
+            ].strip()
+
+
+        if content.endswith("```"):
+
+            content = content[:-3].strip()
+
+
+        # =================================================
+        # CONVERT JSON TEXT TO PYTHON OBJECT
+        # =================================================
+
+        try:
+
+            result = json.loads(content)
+
+        except json.JSONDecodeError:
+
+            # Sometimes the model may place extra text
+            # around the JSON. Try to find the JSON object.
+
+            start = content.find("{")
+            end = content.rfind("}")
+
+            if start == -1 or end == -1:
+
+                return jsonify({
+                    "error": (
+                        "Gemini returned an invalid response. "
+                        "Please try again."
+                    )
+                }), 500
+
+            try:
+
+                result = json.loads(
+                    content[start:end + 1]
+                )
+
+            except json.JSONDecodeError:
+
+                return jsonify({
+                    "error": (
+                        "Gemini returned an invalid JSON response. "
+                        "Please try again."
+                    )
+                }), 500
+
+
+        # =================================================
+        # BASIC RESULT VALIDATION
+        # =================================================
+
+        required_keys = [
+
+            "personality",
+
+            "communication_style",
+
+            "words_to_use",
+
+            "words_to_avoid",
+
+            "example_messages"
+        ]
+
+
+        for key in required_keys:
+
+            if key not in result:
+
+                result[key] = []
+
+
+        # =================================================
+        # RETURN RESULT TO FRONTEND
+        # =================================================
 
         return jsonify({
             "result": result
@@ -522,61 +400,96 @@ brand voice guide.
 
 
     # =====================================================
-    # ERROR HANDLING
+    # TOKEN / CONTEXT ERROR
     # =====================================================
 
     except Exception as error:
 
+        error_text = str(error)
+
         print(
-            "Gemini/LangChain error:",
-            repr(error)
+            "========================================"
         )
 
-        error_text = str(error).lower()
+        print(
+            "GEMINI ERROR:"
+        )
+
+        print(
+            error_text
+        )
+
+        print(
+            "========================================"
+        )
 
 
-        # -----------------------------------------------
-        # CONTEXT / TOKEN ERROR
-        # -----------------------------------------------
+        lower_error = error_text.lower()
+
+
+        # -------------------------------------------------
+        # CONTEXT / TOKEN LIMIT
+        # -------------------------------------------------
 
         if (
-            "token" in error_text
-            or "context" in error_text
-            or "too long" in error_text
-            or "maximum" in error_text
+            "token" in lower_error
+            or "context" in lower_error
+            or "too long" in lower_error
+            or "maximum" in lower_error
+            or "413" in lower_error
         ):
 
             return jsonify({
                 "error": (
-                    "The prompt is larger than the model can "
-                    "process in one request. Please reduce the "
-                    "brand information and try again."
+                    "The brand description is larger than "
+                    "Gemini can process in one request. "
+                    "Please reduce the text and try again."
                 )
             }), 413
 
 
-        # -----------------------------------------------
-        # API / AUTHENTICATION ERROR
-        # -----------------------------------------------
+        # -------------------------------------------------
+        # API KEY / AUTHENTICATION
+        # -------------------------------------------------
 
         if (
-            "api key" in error_text
-            or "permission" in error_text
-            or "authentication" in error_text
-            or "unauthorized" in error_text
+            "api key" in lower_error
+            or "permission" in lower_error
+            or "authentication" in lower_error
+            or "unauthorized" in lower_error
+            or "401" in lower_error
+            or "403" in lower_error
         ):
 
             return jsonify({
                 "error": (
                     "There is a problem with the Gemini API key. "
-                    "Check your GEMINI_API_KEY environment variable."
+                    "Please check GEMINI_API_KEY in Render."
                 )
             }), 500
 
 
-        # -----------------------------------------------
+        # -------------------------------------------------
+        # RATE LIMIT
+        # -------------------------------------------------
+
+        if (
+            "429" in lower_error
+            or "rate limit" in lower_error
+            or "quota" in lower_error
+        ):
+
+            return jsonify({
+                "error": (
+                    "Gemini API limit has been reached. "
+                    "Please wait and try again."
+                )
+            }), 429
+
+
+        # -------------------------------------------------
         # GENERAL ERROR
-        # -----------------------------------------------
+        # -------------------------------------------------
 
         return jsonify({
             "error": (
@@ -587,19 +500,13 @@ brand voice guide.
 
 
 # =========================================================
-# START APPLICATION
+# START SERVER
 # =========================================================
-
-init_db()
-
 
 if __name__ == "__main__":
 
     app.run(
-
         host="0.0.0.0",
-
         port=5000,
-
         debug=True
-)
+    )
