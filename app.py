@@ -143,7 +143,7 @@ def generate():
 
         model = ChatGoogleGenerativeAI(
 
-            model="gemini-2.5-flash",
+            model="gemini-3.8-flash",
 
             google_api_key=google_api_key,
 
